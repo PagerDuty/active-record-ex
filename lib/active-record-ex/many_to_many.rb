@@ -73,11 +73,11 @@ module ActiveRecordEx
 
         method_name = name.pluralize.to_sym
         define_singleton_method(method_name) do
-          klass = klass_name.constantize
+          klass_name = klass_name.constantize unless klass_name.is_a? Class
           foreign_key = self.arel_table[key_name]
           primary_keys = self.pluck(foreign_key).uniq
           # eg, Account.where(id: ids)
-          klass.where(klass.primary_key => primary_keys)
+          klass_name.where(klass.primary_key => primary_keys)
         end
       end
 
@@ -114,8 +114,8 @@ module ActiveRecordEx
           primary_key = self.arel_table[self.primary_key]
           foreign_keys = self.pluck(primary_key).uniq
 
-          other_klass = klass_name.constantize
-          other_klass.where(conditions).where(foreign_key_name => foreign_keys)
+          klass_name = klass_name.constantize unless klass_name.is_a? Class
+          klass_name.where(conditions).where(foreign_key_name => foreign_keys)
         end
       end
 
