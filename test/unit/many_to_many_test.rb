@@ -2,6 +2,9 @@ require 'test_helper'
 require 'active-record-ex/many_to_many'
 
 class ManyToManyTest < ActiveSupport::TestCase
+  # Declare classes first to avoid circular dependencies
+  class HasManied < StubModel; end
+  class SomeClassNamedByClass < StubModel; end
   class HasManied < StubModel
     include ActiveRecordEx::ManyToMany
 
@@ -9,6 +12,7 @@ class ManyToManyTest < ActiveSupport::TestCase
     has_many :simple_belongs_tos
     has_many :belongs_to_throughs, through: :simple_belongs_tos
     has_many :class_nameds, class_name: 'ManyToManyTest::SomeClassName'
+    has_many :class_nameds_by_class, class_name: ManyToManyTest::SomeClassNamedByClass
     has_many :foreign_keyeds, foreign_key: :some_foreign_key_id
     has_many :aseds, as: :some_as
 
@@ -31,6 +35,11 @@ class ManyToManyTest < ActiveSupport::TestCase
     include ActiveRecordEx::ManyToMany
 
     belongs_to :some_name, class_name: 'ManyToManyTest::HasManied'
+  end
+  class SomeClassNamedByClass < StubModel
+    include ActiveRecordEx::ManyToMany
+
+    belongs_to :some_name, class_name: ManyToManyTest::HasManied
   end
   class ForeignKeyed < StubModel
     include ActiveRecordEx::ManyToMany
@@ -98,6 +107,12 @@ class ManyToManyTest < ActiveSupport::TestCase
         @arel.class_nameds.to_a
       end
 
+      should 'support class references for name' do
+        db_expects(@arel, ['SELECT `has_manieds`.`id` FROM `has_manieds` '], [id: 1])
+        db_expects(@arel, ['SELECT `some_class_names`.* FROM `some_class_names`  WHERE `some_class_names`.`has_manied_id` IN (1)', 'ManyToManyTest::SomeClassName Load'])
+        @arel.class_nameds_by_class.to_a
+      end
+
       should 'use the foreign key passed in' do
         db_expects(@arel, ['SELECT `has_manieds`.`id` FROM `has_manieds` '], [id: 1])
         db_expects(@arel, ['SELECT `foreign_keyeds`.* FROM `foreign_keyeds`  WHERE `foreign_keyeds`.`some_foreign_key_id` IN (1)', 'ManyToManyTest::ForeignKeyed Load'])
@@ -121,6 +136,13 @@ class ManyToManyTest < ActiveSupport::TestCase
 
       should 'use the class name passed in' do
         @arel = SomeClassName.scoped
+        db_expects(@arel, ['SELECT `some_class_names`.`some_name_id` FROM `some_class_names` '], [some_name_id: 1])
+        db_expects(@arel, ['SELECT `has_manieds`.* FROM `has_manieds`  WHERE `has_manieds`.`id` IN (1)', 'ManyToManyTest::HasManied Load'])
+        @arel.some_names.to_a
+      end
+
+      should 'support class references for name' do
+        @arel = SomeClassNamedByClass.scoped
         db_expects(@arel, ['SELECT `some_class_names`.`some_name_id` FROM `some_class_names` '], [some_name_id: 1])
         db_expects(@arel, ['SELECT `has_manieds`.* FROM `has_manieds`  WHERE `has_manieds`.`id` IN (1)', 'ManyToManyTest::HasManied Load'])
         @arel.some_names.to_a
