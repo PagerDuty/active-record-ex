@@ -7,9 +7,14 @@ module ActiveRecordEx
     end
 
     module ClassMethods
-      def has_many(assoc_name, options = {}, &extension)
-        order_field = options.delete(:order_on)
-        super
+      def has_many(assoc_name, scope = nil, options = {}, &extension)
+        order_field = scope.is_a?(Hash) ? scope.delete(:order_on) : options.delete(:order_on)
+        if ActiveRecord::VERSION::MAJOR < 4
+          super(assoc_name, scope || {}, &extension)
+        else
+          super
+        end
+        opts = (scope.is_a?(Hash) ? scope : options)
         return unless order_field
 
         define_model_setter(assoc_name, order_field)

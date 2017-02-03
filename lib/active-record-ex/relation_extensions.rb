@@ -29,7 +29,10 @@ module ActiveRecord
 
     def collapsed_where
       values = self.where_values
-      values = [true] if values.empty?
+      # You must pass in 1 instead of True Arel no longer
+      # supports TrueClass
+      # https://github.com/rails/rails/issues/20473
+      values = [1] if values.empty?
       # FIXME: Needs to wrap string literal conditions (e.g., where("id > 1"))
       Arel::Nodes::And.new(values)
     end

@@ -7,7 +7,7 @@ module ActiveRecordEx
     def self.included(base)
       base.extend(ClassMethods)
       base.instance_eval do
-        attr_accessible :type
+        attr_accessible :type if respond_to?(:attr_accessible)
 
         class << self
           alias_method_chain :new, :typing

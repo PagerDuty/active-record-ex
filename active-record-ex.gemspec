@@ -20,10 +20,13 @@ Gem::Specification.new do |spec|
 
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'rake'
-  spec.add_development_dependency 'test-unit'
   spec.add_development_dependency 'shoulda'
   spec.add_development_dependency 'mocha'
+  spec.add_development_dependency 'sqlite3'
+  spec.add_development_dependency 'database_cleaner'
+  spec.add_development_dependency 'minitest-rails'
+  spec.add_development_dependency 'test-unit'
 
-  spec.add_runtime_dependency 'activesupport', '~> 3.2'
-  spec.add_runtime_dependency 'activerecord', '~> 3.2'
+  spec.add_runtime_dependency 'activesupport', '>= 3.2'
+  spec.add_runtime_dependency 'activerecord', '>= 3.2'
 end
