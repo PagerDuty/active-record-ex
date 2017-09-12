@@ -1,19 +1,19 @@
 require 'test_helper'
 require 'active-record-ex/assoc_ordering'
 
-class OrderedAssoc < StubModel
+class OrderedAssoc < ActiveRecord::Base
   attr_accessor :name
   attr_accessor :order
   attr_accessor :has_orderd_assoc_id
 end
 
-class DestroyableAssoc < StubModel
+class DestroyableAssoc < ActiveRecord::Base
   attr_accessor :name
   attr_accessor :order
   attr_accessor :has_orderd_assoc_id
 end
 
-class HasOrderedAssoc < StubModel
+class HasOrderedAssoc < ActiveRecord::Base
   include ActiveRecordEx::AssocOrdering
 
   has_many :ordered_assocs, order_on: :order

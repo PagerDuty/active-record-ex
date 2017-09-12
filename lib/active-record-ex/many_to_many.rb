@@ -26,19 +26,42 @@ module ActiveRecordEx
     end
 
     module ClassMethods
-      def belongs_to(name, options={})
+      def set_scope_and_options(scope, options)
+        if scope.is_a?(Hash)
+          options = scope
+          scope   = nil
+        end
+        [scope, options]
+      end
+
+      def belongs_to(name, scope = nil, options = {})
+        scope, options = set_scope_and_options(scope, options)
         subtypes = options.delete(:subtypes)
-        super
+        if ActiveRecord::VERSION::MAJOR < 4
+          super(name, options)
+        else
+          super
+        end
         define_belongs_assoc(name, options.merge(subtypes: subtypes))
       end
 
-      def has_many(name, options = {}, &extension)
-        super
+      def has_many(name, scope = nil, options = {}, &extension)
+        scope, options = set_scope_and_options(scope, options)
+        if ActiveRecord::VERSION::MAJOR < 4
+          super(name, options, &extension)
+        else
+          super
+        end
         define_has_assoc(name.to_s.singularize, options)
       end
 
-      def has_one(name, options = {}, &extension)
-        super
+      def has_one(name, scope = nil, options = {}, &extension)
+        scope, options = set_scope_and_options(scope, options)
+        if ActiveRecord::VERSION::MAJOR < 4
+          super(name, options, &extension)
+        else
+          super
+        end
         define_has_assoc(name.to_s, options)
       end
 
@@ -74,7 +97,7 @@ module ActiveRecordEx
         method_name = name.pluralize.to_sym
         define_singleton_method(method_name) do
           klass = klass_name.constantize
-          foreign_key = self.arel_table[key_name]
+          foreign_key = ActiveRecord::VERSION::MAJOR < 4 ? self.arel_table[key_name] : self.arel_table[key_name].name
           primary_keys = self.pluck(foreign_key).uniq
           # eg, Account.where(id: ids)
           klass.where(klass.primary_key => primary_keys)
@@ -89,7 +112,7 @@ module ActiveRecordEx
 
           method_name = subtype_klass.to_s.demodulize.underscore.pluralize.to_sym
           define_singleton_method(method_name) do
-            foreign_key = self.arel_table[key_name]
+            foreign_key = ActiveRecord::VERSION::MAJOR < 4 ? self.arel_table[key_name] : self.arel_table[key_name].name
             primary_keys = self.where(type_key => type_val).pluck(foreign_key).uniq
             # eg, Account.where(id: ids)
             subtype_klass.where(subtype_klass.primary_key => primary_keys)
@@ -111,7 +134,7 @@ module ActiveRecordEx
 
         method_name = name.pluralize.to_sym
         define_singleton_method(method_name) do
-          primary_key = self.arel_table[self.primary_key]
+          primary_key = ActiveRecord::VERSION::MAJOR < 4 ? self.arel_table[self.primary_key] : self.arel_table[self.primary_key].name
           foreign_keys = self.pluck(primary_key).uniq
 
           other_klass = klass_name.constantize

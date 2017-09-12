@@ -1,11 +1,11 @@
 require 'test_helper'
 
 class RelationExtensionsTest < ActiveSupport::TestCase
-  class HasManied < StubModel
+  class HasManied < ActiveRecord::Base
     has_many :belongs_tos
   end
 
-  class BelongsTo < StubModel
+  class BelongsTo < ActiveRecord::Base
     belongs_to :has_manied
     attr_accessor :has_manied_id
   end
@@ -49,13 +49,13 @@ class RelationExtensionsTest < ActiveSupport::TestCase
 
     context 'by unconditional' do
       should 'return nothing' do
-        assert_empty BelongsTo.scoped.relative_complement(@hm1.belongs_tos)
+        assert_equal true, BelongsTo.unscoped.relative_complement(@hm1.belongs_tos).empty?
       end
     end
 
     context 'of unconditional' do
       should 'return all belongs_tos' do
-        assert_equal @hm2.belongs_tos.all, @hm1.belongs_tos.relative_complement(BelongsTo.scoped)
+        assert_equal @hm2.belongs_tos.all, @hm1.belongs_tos.relative_complement(BelongsTo.where('1=1'))
       end
     end
   end

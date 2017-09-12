@@ -2,7 +2,7 @@ require 'test_helper'
 require 'active-record-ex/many_to_many'
 
 class ManyToManyTest < ActiveSupport::TestCase
-  class HasManied < StubModel
+  class HasManied < ActiveRecord::Base
     include ActiveRecordEx::ManyToMany
 
     has_one :one
@@ -14,7 +14,7 @@ class ManyToManyTest < ActiveSupport::TestCase
 
     singularize :ones
   end
-  class SimpleBelongsTo < StubModel
+  class SimpleBelongsTo < ActiveRecord::Base
     include ActiveRecordEx::ManyToMany
 
     belongs_to :has_manied
@@ -22,122 +22,112 @@ class ManyToManyTest < ActiveSupport::TestCase
 
     singularize :has_manieds
   end
-  class BelongsToThrough < StubModel
+  class BelongsToThrough < ActiveRecord::Base
     include ActiveRecordEx::ManyToMany
 
     belongs_to :has_manied
   end
-  class SomeClassName < StubModel
+  class SomeClassName < ActiveRecord::Base
     include ActiveRecordEx::ManyToMany
 
     belongs_to :some_name, class_name: 'ManyToManyTest::HasManied'
   end
-  class ForeignKeyed < StubModel
+  class ForeignKeyed < ActiveRecord::Base
     include ActiveRecordEx::ManyToMany
 
     belongs_to :has_manied, foreign_key: :some_foreign_key_id
   end
-  class Ased < StubModel
+  class Ased < ActiveRecord::Base
     include ActiveRecordEx::ManyToMany
 
     belongs_to :some_as, polymorphic: true, subtypes: [HasManied]
   end
-  class One < StubModel
+  class One < ActiveRecord::Base
   end
 
   context 'ActiveRecord::ManyToMany' do
     context '#has_one' do
-      setup { @arel = HasManied.scoped }
+      setup do
+        @has_manied = HasManied.create
+        @one = @has_manied.create_one
+      end
+
       should 'handle the simple case correctly' do
-        db_expects(@arel, ['SELECT `has_manieds`.`id` FROM `has_manieds` '], [{id: 1}])
-        db_expects(@arel, ['SELECT `ones`.* FROM `ones`  WHERE `ones`.`has_manied_id` IN (1)', 'ManyToManyTest::One Load'])
-        @arel.ones.to_a
+        assert_equal HasManied.where('1=1').ones.to_a, [@one]
       end
     end
 
     context '#has_many' do
-      setup { @arel = HasManied.scoped }
+      setup do
+        @has_manied = HasManied.create
+        @simple_belongs_to = @has_manied.simple_belongs_tos.create
+      end
 
       should 'handle the simple case correctly' do
-        db_expects(@arel, ['SELECT `has_manieds`.`id` FROM `has_manieds` '], [id: 1])
-        db_expects(@arel, ['SELECT `simple_belongs_tos`.* FROM `simple_belongs_tos`  WHERE `simple_belongs_tos`.`has_manied_id` IN (1)', 'ManyToManyTest::SimpleBelongsTo Load'])
-        @arel.simple_belongs_tos.to_a
+        assert_equal HasManied.where('1=1').simple_belongs_tos.to_a, [@simple_belongs_to]
       end
 
       should 'handle the empty base case correctly' do
-        db_expects(@arel, ['SELECT `has_manieds`.`id` FROM `has_manieds`  WHERE (1=0)'], [])
-        db_expects(@arel, ['SELECT `simple_belongs_tos`.* FROM `simple_belongs_tos`  WHERE 1=0', 'ManyToManyTest::SimpleBelongsTo Load'])
-        @arel.none.simple_belongs_tos.to_a
+        assert_equal HasManied.where('1=1').none.simple_belongs_tos.to_a, []
       end
 
       should 'handle the multiple base ids case correctly' do
-        db_expects(@arel, ['SELECT `has_manieds`.`id` FROM `has_manieds` '], [{id: 1}, {id: 2}])
-        db_expects(@arel, ['SELECT `simple_belongs_tos`.* FROM `simple_belongs_tos`  WHERE `simple_belongs_tos`.`has_manied_id` IN (1, 2)', 'ManyToManyTest::SimpleBelongsTo Load'])
-        @arel.simple_belongs_tos.to_a
+        second_has_manied = HasManied.create
+        simple_belongs_to = second_has_manied.simple_belongs_tos.create
+        assert_equal HasManied.where('1=1').simple_belongs_tos.to_a, [@simple_belongs_to, simple_belongs_to]
       end
 
       should 'chain queries for has_many through:' do
-        db_expects(@arel, ['SELECT `has_manieds`.`id` FROM `has_manieds` '], [{id: 1}])
-        db_expects(@arel, ['SELECT `simple_belongs_tos`.`id` FROM `simple_belongs_tos`  WHERE `simple_belongs_tos`.`has_manied_id` IN (1)'], [{id: 1}])
-        db_expects(@arel, ['SELECT `belongs_to_throughs`.* FROM `belongs_to_throughs`  WHERE `belongs_to_throughs`.`simple_belongs_to_id` IN (1)', 'ManyToManyTest::BelongsToThrough Load'])
+        belongs_to_through = @simple_belongs_to.belongs_to_throughs.create
 
-        @arel.belongs_to_throughs.to_a
+        assert_equal HasManied.belongs_to_throughs.to_a, [belongs_to_through]
       end
 
       should 'not N+1 has_many through:' do
-        db_expects(@arel, ['SELECT `has_manieds`.`id` FROM `has_manieds` '], [{id: 1}, {id: 2}])
-        db_expects(@arel, ['SELECT `simple_belongs_tos`.`id` FROM `simple_belongs_tos`  WHERE `simple_belongs_tos`.`has_manied_id` IN (1, 2)'], [{id: 1}, {id: 2}])
-        db_expects(@arel, ['SELECT `belongs_to_throughs`.* FROM `belongs_to_throughs`  WHERE `belongs_to_throughs`.`simple_belongs_to_id` IN (1, 2)', 'ManyToManyTest::BelongsToThrough Load'])
-
-        @arel.belongs_to_throughs.to_a
+        assert_queries(3) do
+          HasManied.where('1=1').belongs_to_throughs.to_a
+        end
       end
 
       should 'use the class name passed in' do
-        db_expects(@arel, ['SELECT `has_manieds`.`id` FROM `has_manieds` '], [id: 1])
-        db_expects(@arel, ['SELECT `some_class_names`.* FROM `some_class_names`  WHERE `some_class_names`.`has_manied_id` IN (1)', 'ManyToManyTest::SomeClassName Load'])
-        @arel.class_nameds.to_a
+        @has_manied.class_nameds.create
+        assert_equal HasManied.where('1=1').class_nameds.first.class, ManyToManyTest::SomeClassName
       end
 
       should 'use the foreign key passed in' do
-        db_expects(@arel, ['SELECT `has_manieds`.`id` FROM `has_manieds` '], [id: 1])
-        db_expects(@arel, ['SELECT `foreign_keyeds`.* FROM `foreign_keyeds`  WHERE `foreign_keyeds`.`some_foreign_key_id` IN (1)', 'ManyToManyTest::ForeignKeyed Load'])
-        @arel.foreign_keyeds.to_a
+        foreign_keyed = @has_manied.foreign_keyeds.create
+        assert_equal HasManied.where('1=1').foreign_keyeds.to_a, [foreign_keyed]
       end
 
       should 'use the as passed in' do
-        db_expects(@arel, ['SELECT `has_manieds`.`id` FROM `has_manieds` '], [id: 1])
-        db_expects(@arel, ['SELECT `aseds`.* FROM `aseds`  WHERE `aseds`.`some_as_type` = \'ManyToManyTest::HasManied\' AND `aseds`.`some_as_id` IN (1)', 'ManyToManyTest::Ased Load'])
-        @arel.aseds.to_a
+        ased = @has_manied.aseds.create
+        assert_equal HasManied.where('1=1').aseds.to_a, [ased]
       end
     end
 
     context '#belongs_to' do
       should 'handle the simple case correctly' do
-        @arel = SimpleBelongsTo.scoped
-        db_expects(@arel, ['SELECT `simple_belongs_tos`.`has_manied_id` FROM `simple_belongs_tos` '], [has_manied_id: 1])
-        db_expects(@arel, ['SELECT `has_manieds`.* FROM `has_manieds`  WHERE `has_manieds`.`id` IN (1)', 'ManyToManyTest::HasManied Load'])
-        @arel.has_manieds.to_a
+        has_manied = HasManied.create
+        sbt = has_manied.simple_belongs_tos.create
+        assert_equal SimpleBelongsTo.where('1=1').has_manieds.to_a, [has_manied]
       end
 
       should 'use the class name passed in' do
-        @arel = SomeClassName.scoped
-        db_expects(@arel, ['SELECT `some_class_names`.`some_name_id` FROM `some_class_names` '], [some_name_id: 1])
-        db_expects(@arel, ['SELECT `has_manieds`.* FROM `has_manieds`  WHERE `has_manieds`.`id` IN (1)', 'ManyToManyTest::HasManied Load'])
-        @arel.some_names.to_a
+        has_manied = HasManied.create
+        scn = SomeClassName.create(some_name_id: has_manied.id)
+        assert_equal SomeClassName.where('1=1').some_names.to_a, [has_manied]
       end
-      
+
       should 'use the foreign key passed in' do
-        @arel = ForeignKeyed.scoped
-        db_expects(@arel, ['SELECT `foreign_keyeds`.`some_foreign_key_id` FROM `foreign_keyeds` '], [some_foreign_key_id: 1])
-        db_expects(@arel, ['SELECT `has_manieds`.* FROM `has_manieds`  WHERE `has_manieds`.`id` IN (1)', 'ManyToManyTest::HasManied Load'])
-        @arel.has_manieds.to_a
+        has_manied = HasManied.create
+        foreign_keyed = ForeignKeyed.create(has_manied: has_manied)
+        assert_equal ForeignKeyed.where('1=1').has_manieds.to_a, [has_manied]
       end
 
       should 'handle polymorphic belongs_to' do
-        @arel = Ased.scoped
-        db_expects(@arel, ['SELECT `aseds`.`some_as_id` FROM `aseds`  WHERE `aseds`.`some_as_type` = \'ManyToManyTest::HasManied\''], [some_as_id: 1])
-        db_expects(@arel, ['SELECT `has_manieds`.* FROM `has_manieds`  WHERE `has_manieds`.`id` IN (1)', 'ManyToManyTest::HasManied Load'])
-        @arel.has_manieds.to_a
+        has_manied = HasManied.create
+        ased = Ased.create(some_as: has_manied)
+        assert_equal Ased.where('1=1').has_manieds.to_a, [has_manied]
       end
     end
 
@@ -145,17 +135,15 @@ class ManyToManyTest < ActiveSupport::TestCase
       should 'work for belongs_tos without triggering an extra query' do
         @model = SimpleBelongsTo.new
         @model.stubs(:has_manied_id).returns(42)
-        @arel = HasManied.scoped
-        db_expects(@arel, ['SELECT `has_manieds`.* FROM `has_manieds`  WHERE `has_manieds`.`id` IN (42)', 'ManyToManyTest::HasManied Load'])
-        @model.has_manieds.to_a
+        @arel = HasManied.all
+        assert_queries(1) { @model.has_manieds.to_a }
       end
 
       should 'work for has_ones without triggering an extra query' do
         @model = HasManied.new
         @model.stubs(:id).returns(42)
-        @arel = One.scoped
-        db_expects(@arel, ['SELECT `ones`.* FROM `ones`  WHERE `ones`.`has_manied_id` IN (42)', 'ManyToManyTest::One Load'])
-        @model.ones.to_a
+        @arel = One.all
+        assert_queries(1) {@model.ones.to_a}
       end
     end
   end

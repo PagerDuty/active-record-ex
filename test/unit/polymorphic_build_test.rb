@@ -2,7 +2,7 @@ require 'test_helper'
 require 'active-record-ex/polymorphic_build'
 
 class PolymorphicBuildTest < ActiveSupport::TestCase
-  class PolyBase < StubModel
+  class PolyBase < ActiveRecord::Base
     include ActiveRecordEx::PolymorphicBuild
     attr_accessor :type
   end
@@ -22,7 +22,7 @@ class PolymorphicBuildTest < ActiveSupport::TestCase
 
   should 'throw an error if the passed in class is not a subclass' do
     assert_raise(ArgumentError) do
-      PolyBase.new(type: StubModel.to_s)
+      PolyBase.new(type: ActiveRecord::Base.to_s)
     end
   end
 end
