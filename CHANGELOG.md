@@ -1,3 +1,7 @@
+#### 0.2.2
+
+- Compatibility with Rails 4.x
+
 #### 0.2.1
 
 - Compatibility with more Ruby versions:
