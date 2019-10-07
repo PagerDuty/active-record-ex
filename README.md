@@ -49,3 +49,4 @@ Allows choosing the subclass of a model in an association via a passed `:type` p
 ## Development
 
 Run tests with `rake test`.
+  
