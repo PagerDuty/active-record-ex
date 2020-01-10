@@ -1,3 +1,9 @@
+# Deprecated
+
+This library is no longer is active development.
+
+
+
 # ActiveRecordEx
 
 A library to make `ActiveRecord::Relation`s even more awesome.
