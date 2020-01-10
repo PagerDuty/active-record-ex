@@ -1,6 +1,6 @@
 # Deprecated
 
-This library is no longer is active development.
+This library is no longer in active development.
 
 
 
